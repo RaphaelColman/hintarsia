@@ -12,6 +12,7 @@ import Data.Range
 import Linear
 import StitchConfig
 import Text.Printf (printf)
+import Data.Word (Word8)
 
 -- Make this configurable as a cmd line argument
 readImageIn :: IO ()
@@ -23,8 +24,8 @@ readImageIn = do
       let sc = getStitchConfig di testGauge 100
       let converted = convertRGB8 di
       let grids = getGrids sc converted
-      print grids
-      print sc
+      let avgd = avgOverGrid grids
+      print avgd
   pure ()
 
 writeImageOut :: DynamicImage -> IO ()
@@ -47,3 +48,19 @@ getGrids sc img = M.fromList tupList
           yMin = y * sc ^. stitchHeightInPixels
        in [pixelAt img (fromInteger x) (fromInteger y) | x <- [xMin .. xMin + (sc ^. stitchWidthInPixels - 1)], y <- [yMin .. (yMin + sc ^. stitchHeightInPixels - 1)]]
     tupList = fmap (\c -> (c, pixelsFor c)) coords
+
+averageColour :: [PixelRGB8] -> PixelRGB8
+averageColour xs = PixelRGB8 (avg rSquare) (avg gSquare) (avg bSquare)
+  where
+    PixelRGB8 rSquare gSquare bSquare =
+      foldr
+        ( \(PixelRGB8 r g b) (PixelRGB8 r' g' b') ->
+            PixelRGB8 (r + r' ^ 2) (g + g' ^ 2) (b + b' ^ 2)
+        )
+        (PixelRGB8 0 0 0)
+        xs
+    numPixels = length xs
+    avg x = round $ sqrt (fromIntegral x / fromIntegral numPixels)
+
+avgOverGrid :: M.Map (V2 Integer) [PixelRGB8] -> M.Map (V2 Integer) PixelRGB8
+avgOverGrid = M.map averageColour
