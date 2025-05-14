@@ -29,6 +29,7 @@ dependencies:
 - bytestring
 - containers
 - range
+- gloss
 
 ghc-options:
 - -Wcompat

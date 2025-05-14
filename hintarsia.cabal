@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      Drawing
       DynamicImageUtils
       ImageProcessing
       Lib
@@ -42,6 +43,7 @@ library
     , bytestring
     , containers
     , directory
+    , gloss
     , lens
     , linear
     , range
@@ -63,6 +65,7 @@ executable hintarsia-exe
     , bytestring
     , containers
     , directory
+    , gloss
     , hintarsia
     , lens
     , linear
@@ -86,6 +89,7 @@ test-suite hintarsia-test
     , bytestring
     , containers
     , directory
+    , gloss
     , hintarsia
     , lens
     , linear
