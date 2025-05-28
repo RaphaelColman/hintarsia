@@ -77,6 +77,7 @@ test-suite hintarsia-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      ImageProcessingSpec
       Paths_hintarsia
   autogen-modules:
       Paths_hintarsia
@@ -91,6 +92,8 @@ test-suite hintarsia-test
     , directory
     , gloss
     , hintarsia
+    , hspec
+    , hspec-discover
     , lens
     , linear
     , range

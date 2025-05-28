@@ -68,15 +68,16 @@ getGrids sc img = M.fromList tupList
 averageColour :: [PixelRGB8] -> PixelRGB8
 averageColour xs = PixelRGB8 (avg rSquare) (avg gSquare) (avg bSquare)
   where
-    PixelRGB8 rSquare gSquare bSquare =
+    (rSquare, gSquare, bSquare) =
       foldr
-        ( \(PixelRGB8 r g b) (PixelRGB8 r' g' b') ->
-            PixelRGB8 (r + r' ^ 2) (g + g' ^ 2) (b + b' ^ 2)
+        ( \(PixelRGB8 r g b) (r', g', b') ->
+            (r + r' ^ 2, g + g' ^ 2, b + b' ^ 2)
         )
-        (PixelRGB8 0 0 0)
+        (0, 0, 0)
         xs
     numPixels = length xs
     avg x = round $ sqrt (fromIntegral x / fromIntegral numPixels)
+
 
 avgOverGrid :: M.Map (V2 Integer) [PixelRGB8] -> M.Map (V2 Integer) PixelRGB8
 avgOverGrid = M.map averageColour
