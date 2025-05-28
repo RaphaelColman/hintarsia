@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module ImageProcessing (readImageIn) where
+module ImageProcessing (readImageIn, produceColourGrid, AvgGrid) where
 
 import Codec.Picture
 import Codec.Picture.Saving (imageToBitmap, imageToJpg)
@@ -13,6 +13,10 @@ import Linear
 import StitchConfig
 import Text.Printf (printf)
 import Data.Word (Word8)
+import Control.Exception (throw)
+
+
+type AvgGrid = M.Map (V2 Integer) PixelRGB8
 
 -- Make this configurable as a cmd line argument
 readImageIn :: IO ()
@@ -25,8 +29,20 @@ readImageIn = do
       let converted = convertRGB8 di
       let grids = getGrids sc converted
       let avgd = avgOverGrid grids
-      print avgd
+      print $ avgd M.! (V2 25 50)
   pure ()
+
+-- | This is not how it will work, I just need to produce a map
+produceColourGrid :: IO (M.Map (V2 Integer) PixelRGB8)
+produceColourGrid = do
+  image <- readImage "res/Haskell-Logo.svg.png"
+  case image of
+    Left err -> undefined --TODO Either throw or convert the result into a Left (maybe ExceptT)
+    Right di -> do
+      let sc = getStitchConfig di testGauge 100
+      let converted = convertRGB8 di
+      let grids = getGrids sc converted
+      pure $ avgOverGrid grids
 
 writeImageOut :: DynamicImage -> IO ()
 writeImageOut di = do

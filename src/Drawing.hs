@@ -9,8 +9,9 @@ import qualified Data.Map as M
 import Graphics.Gloss
 import Linear.V2
 import Data.Function ((&))
+import ImageProcessing (AvgGrid)
 
-cellSize = 5 -- For the moment. Maybe we can do something clever with window size
+cellSize = 15 -- For the moment. Maybe we can do something clever with window size
 
 --given coord x y, what is the cell location?
 --if it's 2,3, and cellsize is 5 -> (10, 15) (or 2*5, 3*5)
@@ -29,11 +30,8 @@ cellWithBorder (width, height) (x, y) (PixelRGB8 r g b) = translate (fromIntegra
     border = rectangleWire (fromIntegral width) (fromIntegral height)
     color = makeColorI (fromIntegral r) (fromIntegral g) (fromIntegral b) 255
 
-drawBox :: Picture
-drawBox = drawGrid testGrid
-  where
-    cl = cellWithBorder (100, 100) (-50, -50) (PixelRGB8 255 0 0)
+testGrid = M.fromList [(V2 0 0, PixelRGB8 255 0 0), (V2 1 1, PixelRGB8 0 255 0), (V2 (-1) (-1), PixelRGB8 0 0 255), (V2 2 2, PixelRGB8 255 255 255)]
 
-testGrid = M.fromList [(V2 0 0, PixelRGB8 255 0 0), (V2 1 1, PixelRGB8 0 255 0), (V2 (-1) (-1), PixelRGB8 0 0 255)]
-
-doDisplay = display (InWindow "Nice Window" (200, 200) (10, 10)) white drawBox
+doDisplay :: AvgGrid -> IO ()
+doDisplay aGrid = do
+  display (InWindow "Nice Window" (200, 200) (10, 10)) white (drawGrid aGrid)
