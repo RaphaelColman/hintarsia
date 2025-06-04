@@ -1,20 +1,20 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module ImageProcessing (readImageIn, produceColourGrid, AvgGrid) where
+module ImageProcessing (readImageIn, produceColourGrid, AvgGrid, averageColour) where
 
 import Codec.Picture
 import Codec.Picture.Saving (imageToBitmap, imageToJpg)
+import Control.Exception (throw)
 import Control.Lens ((^.))
 import Data.ByteString.Lazy as BS (writeFile)
 import qualified Data.Map as M
 import Data.Range
+import Data.Word (Word8)
+import Debug.Trace
 import Linear
 import StitchConfig
 import Text.Printf (printf)
-import Data.Word (Word8)
-import Control.Exception (throw)
-
 
 type AvgGrid = M.Map (V2 Integer) PixelRGB8
 
@@ -29,7 +29,7 @@ readImageIn = do
       let converted = convertRGB8 di
       let grids = getGrids sc converted
       let avgd = avgOverGrid grids
-      print $ avgd M.! (V2 25 50)
+      print $ avgd M.! V2 25 50
   pure ()
 
 -- | This is not how it will work, I just need to produce a map
@@ -37,7 +37,7 @@ produceColourGrid :: IO (M.Map (V2 Integer) PixelRGB8)
 produceColourGrid = do
   image <- readImage "res/Haskell-Logo.svg.png"
   case image of
-    Left err -> undefined --TODO Either throw or convert the result into a Left (maybe ExceptT)
+    Left err -> undefined -- TODO Either throw or convert the result into a Left (maybe ExceptT)
     Right di -> do
       let sc = getStitchConfig di testGauge 100
       let converted = convertRGB8 di
@@ -71,13 +71,12 @@ averageColour xs = PixelRGB8 (avg rSquare) (avg gSquare) (avg bSquare)
     (rSquare, gSquare, bSquare) =
       foldr
         ( \(PixelRGB8 r g b) (r', g', b') ->
-            (r + r' ^ 2, g + g' ^ 2, b + b' ^ 2)
+            (r' + fromIntegral r ^ 2, g' + fromIntegral g ^ 2, b' + fromIntegral b ^ 2)
         )
         (0, 0, 0)
         xs
     numPixels = length xs
     avg x = round $ sqrt (fromIntegral x / fromIntegral numPixels)
-
 
 avgOverGrid :: M.Map (V2 Integer) [PixelRGB8] -> M.Map (V2 Integer) PixelRGB8
 avgOverGrid = M.map averageColour
