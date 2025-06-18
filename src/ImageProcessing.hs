@@ -15,34 +15,37 @@ import Debug.Trace
 import Linear
 import StitchConfig
 import Text.Printf (printf)
+import Data.Foldable (minimumBy)
+import Data.Function (on)
 
 type AvgGrid = M.Map (V2 Integer) PixelRGB8
 
 -- Make this configurable as a cmd line argument
 readImageIn :: IO ()
 readImageIn = do
-  image <- readImage "res/Haskell-Logo.svg.png"
+  image <- readImage "res/Haskell-Logo-2.jpg"
   case image of
     Left err -> print err
     Right di -> do
-      let sc = getStitchConfig di testGauge 100
       let converted = convertRGB8 di
-      let grids = getGrids sc converted
-      let avgd = avgOverGrid grids
-      print $ avgd M.! V2 25 50
+      let p = doPalettize 2 converted
+      print p
   pure ()
 
 -- | This is not how it will work, I just need to produce a map
 produceColourGrid :: IO (M.Map (V2 Integer) PixelRGB8)
 produceColourGrid = do
-  image <- readImage "res/Haskell-Logo.svg.png"
+  image <- readImage "res/Haskell-Logo-2.jpg"
   case image of
-    Left err -> undefined -- TODO Either throw or convert the result into a Left (maybe ExceptT)
+    Left err -> undefined -- Should maybe introduce ExceptT into this
     Right di -> do
-      let sc = getStitchConfig di testGauge 100
+      let sc = getStitchConfig di testGauge 50
       let converted = convertRGB8 di
       let grids = getGrids sc converted
-      pure $ avgOverGrid grids
+      let avgGrid = avgOverGrid grids
+      let palette = doPalettize 2 converted
+      let reduced = reduceAvgGridToPalette avgGrid palette
+      pure reduced
 
 writeImageOut :: DynamicImage -> IO ()
 writeImageOut di = do
@@ -62,8 +65,9 @@ getGrids sc img = M.fromList tupList
     pixelsFor (V2 x y) =
       let xMin = x * sc ^. stitchWidthInPixels
           yMin = y * sc ^. stitchHeightInPixels
-       in [pixelAt img (fromInteger x) (fromInteger y) | x <- [xMin .. xMin + (sc ^. stitchWidthInPixels - 1)], y <- [yMin .. (yMin + sc ^. stitchHeightInPixels - 1)]]
+       in [flippedPixelAt img (fromInteger x) (fromInteger y) | x <- [xMin .. xMin + (sc ^. stitchWidthInPixels - 1)], y <- [yMin .. (yMin + sc ^. stitchHeightInPixels - 1)]]
     tupList = fmap (\c -> (c, pixelsFor c)) coords
+    flippedPixelAt img' x y = pixelAt img' x ((imageHeight img - 1) - y)
 
 averageColour :: [PixelRGB8] -> PixelRGB8
 averageColour xs = PixelRGB8 (avg rSquare) (avg gSquare) (avg bSquare)
@@ -80,3 +84,19 @@ averageColour xs = PixelRGB8 (avg rSquare) (avg gSquare) (avg bSquare)
 
 avgOverGrid :: M.Map (V2 Integer) [PixelRGB8] -> M.Map (V2 Integer) PixelRGB8
 avgOverGrid = M.map averageColour
+
+doPalettize :: Int -> Image PixelRGB8 -> [PixelRGB8]
+doPalettize numberOfColours image = [pixelAt palette x 0 | x <- [0 .. numberOfColours - 1]]
+  where
+    options = PaletteOptions MedianMeanCut False numberOfColours
+    (_, palette) = palettize options image
+
+-- TODO we could maybe do some type foo here that the number of colours is guaranteed by the type
+reduceAvgGridToPalette :: AvgGrid -> [PixelRGB8] -> AvgGrid
+reduceAvgGridToPalette grid palette = M.map pick grid
+  where pick :: PixelRGB8 -> PixelRGB8
+        pick pixel = minimumBy (compare `on` colourDistance pixel) palette
+
+colourDistance :: PixelRGB8 -> PixelRGB8 -> Float
+colourDistance colour1 colour2 = distance (toVector colour1) (toVector colour2)
+  where toVector (PixelRGB8 r g b) = V3 (fromIntegral r) (fromIntegral g) (fromIntegral b)

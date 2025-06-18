@@ -61,3 +61,6 @@ Gah! This doesn't take gauge into account. We need to know the gauge of each sti
 
 #### Test image
 ImageRGBA8, width 512, height 362
+Tried quantizing with the juicy pixels library:
+2 colours: [PixelRGB8 255 254 254,PixelRGB8 95 74 122] (white then purple)
+3 colours: [PixelRGB8 70 60 97,PixelRGB8 109 82 136,PixelRGB8 255 254 254]
