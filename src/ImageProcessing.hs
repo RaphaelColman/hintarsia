@@ -67,6 +67,7 @@ getGrids sc img = M.fromList tupList
           yMin = y * sc ^. stitchHeightInPixels
        in [flippedPixelAt img (fromInteger x) (fromInteger y) | x <- [xMin .. xMin + (sc ^. stitchWidthInPixels - 1)], y <- [yMin .. (yMin + sc ^. stitchHeightInPixels - 1)]]
     tupList = fmap (\c -> (c, pixelsFor c)) coords
+    -- JuicyPixels has (0,0) as the top left corner, but we want (0,0) to be the bottom left corner
     flippedPixelAt img' x y = pixelAt img' x ((imageHeight img - 1) - y)
 
 averageColour :: [PixelRGB8] -> PixelRGB8
