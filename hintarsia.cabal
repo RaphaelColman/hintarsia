@@ -27,6 +27,7 @@ library
   exposed-modules:
       Drawing
       DynamicImageUtils
+      GtkApp
       ImageProcessing
       Lib
       StitchConfig
@@ -41,9 +42,12 @@ library
       JuicyPixels
     , base >=4.7 && <5
     , bytestring
+    , cairo
     , containers
     , directory
+    , glib
     , gloss
+    , gtk3
     , lens
     , linear
     , range
@@ -63,9 +67,12 @@ executable hintarsia-exe
       JuicyPixels
     , base >=4.7 && <5
     , bytestring
+    , cairo
     , containers
     , directory
+    , glib
     , gloss
+    , gtk3
     , hintarsia
     , lens
     , linear
@@ -88,9 +95,12 @@ test-suite hintarsia-test
       JuicyPixels
     , base >=4.7 && <5
     , bytestring
+    , cairo
     , containers
     , directory
+    , glib
     , gloss
+    , gtk3
     , hintarsia
     , hspec
     , hspec-discover

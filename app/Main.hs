@@ -1,11 +1,10 @@
 module Main (main) where
 
 import Lib
-import Graphics.Gloss
-import Drawing
-import ImageProcessing
+import GtkApp
 
 main :: IO ()
 main = do
-  avgGrid <- produceColourGrid
-  doDisplay avgGrid
+  mainGtkApp
+  -- avgGrid <- produceColourGrid
+  -- doDisplay avgGrid

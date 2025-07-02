@@ -30,6 +30,9 @@ dependencies:
 - containers
 - range
 - gloss
+- gtk3
+- glib
+- cairo
 
 ghc-options:
 - -Wcompat
