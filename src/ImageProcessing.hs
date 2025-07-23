@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module ImageProcessing (readImageIn, produceColourGrid, AvgGrid, averageColour) where
+module ImageProcessing (produceColourGrid, AvgGrid, averageColour) where
 
 import Codec.Picture
 import Codec.Picture.Saving (imageToBitmap, imageToJpg)
@@ -20,18 +20,6 @@ import Data.Function (on)
 
 type AvgGrid = M.Map (V2 Integer) PixelRGB8
 
--- Make this configurable as a cmd line argument
-readImageIn :: IO ()
-readImageIn = do
-  image <- readImage "res/Haskell-Logo-2.jpg"
-  case image of
-    Left err -> print err
-    Right di -> do
-      let converted = convertRGB8 di
-      let p = doPalettize 2 converted
-      print p
-  pure ()
-
 -- | This is not how it will work, I just need to produce a map
 produceColourGrid :: IO (M.Map (V2 Integer) PixelRGB8)
 produceColourGrid = do
@@ -46,6 +34,7 @@ produceColourGrid = do
       let palette = doPalettize 2 converted
       let reduced = reduceAvgGridToPalette avgGrid palette
       pure reduced
+
 
 writeImageOut :: DynamicImage -> IO ()
 writeImageOut di = do

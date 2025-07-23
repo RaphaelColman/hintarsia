@@ -1,17 +1,33 @@
 module GtkApp (mainGtkApp) where
 
--- Main GTK+ bindings
--- For drawing in the drawing area
-import Control.Monad (void) -- For ignoring return values
+import Control.Monad (void)
 import Data.IORef
 import Graphics.Rendering.Cairo
 import Graphics.UI.Gtk
-import Text.Read (readMaybe) -- For safe reading of input values
+import Linear (V0 (V0))
+import Text.Read (readMaybe)
+import Debug.Trace
 
 -- | Data type to hold the application's state.
 data AppState = AppState
   { _squareSize :: IORef Double,
     _squareXPos :: IORef Double
+  }
+
+data Form = MkForm
+  { _stitchGauge :: IORef Double,
+    _rowGauge :: IORef Double,
+    _numberOfColours :: IORef Int,
+    _targetStitches :: IORef Int,
+    _imageFilePath :: IORef (Maybe String)
+  }
+
+data ValidForm = MkValidForm
+  { _validStitchGauge :: Double,
+    _validRowGauge :: Double,
+    _validNumberOfColours :: Int,
+    _validTargetStitches :: Int,
+    _validImageFilePath :: String
   }
 
 mainGtkApp :: IO ()
@@ -23,6 +39,7 @@ mainGtkApp = do
   initialSize <- newIORef 100.0
   initialXPos <- newIORef 50.0
   let appState = AppState initialSize initialXPos
+  form <- initialForm
 
   -- Create the main window
   window <- windowNew
@@ -60,7 +77,7 @@ mainGtkApp = do
         -- User clicked "Open", get the selected filename
         mFilename <- fileChooserGetFilename dialog
         case mFilename of
-          Just filename -> putStrLn $ "Selected file: " ++ filename
+          Just filename -> writeIORef (_imageFilePath form) (Just filename)
           Nothing -> putStrLn "No file selected."
       _ -> do
         -- User clicked "Cancel" or closed the dialog
@@ -83,6 +100,11 @@ mainGtkApp = do
   entrySetText xPosEntry (show (50.0 :: Double)) -- Default value
   xPosLabel <- labelNew (Just "Square X Position:")
 
+  (stitchGauge, stitchGaugeBox) <- inputText "Stitch gauge stitch/cm" "2.1"
+  (rowGauge, rowGaugeBox) <- inputText "Row gauge row/cm" "1.9"
+  (numberOfColours, numberOfColoursBox) <- inputText "Number of colours" "3"
+  (targetStitches, targetStitchesBox) <- inputText "Target stitches" "100"
+
   -- Horizontal box for size input
   hboxSize <- hBoxNew False 5
   boxPackStart hboxSize sizeLabel PackNatural 0
@@ -96,6 +118,10 @@ mainGtkApp = do
   -- Add input boxes to the vertical box
   boxPackStart vbox hboxSize PackNatural 0
   boxPackStart vbox hboxXPos PackNatural 0
+  boxPackStart vbox stitchGaugeBox PackNatural 0
+  boxPackStart vbox rowGaugeBox PackNatural 0
+  boxPackStart vbox numberOfColoursBox PackNatural 0
+  boxPackStart vbox targetStitchesBox PackNatural 0
 
   -- --- Drawing Area Section ---
   drawingArea <- drawingAreaNew
@@ -115,6 +141,28 @@ mainGtkApp = do
     case readMaybe xPosText :: Maybe Double of
       Just x -> writeIORef (_squareXPos appState) x
       _ -> putStrLn $ "Invalid X position input: " ++ xPosText ++ ". Using previous value."
+
+    stitchGauge <- entryGetText stitchGauge
+    case readMaybe stitchGauge :: Maybe Double of
+      Just sg | sg > 0 -> writeIORef (_stitchGauge form) sg
+      _ -> putStrLn $ "Invalid stitch gauge input: " ++ stitchGauge
+
+    rowGauge <- entryGetText rowGauge
+    case readMaybe rowGauge :: Maybe Double of
+      Just rg | rg > 0 -> writeIORef (_rowGauge form) rg
+      _ -> putStrLn $ "Invalid row gauge input: " ++ rowGauge
+
+    numberOfColoursText <- entryGetText numberOfColours
+    case readMaybe numberOfColoursText :: Maybe Int of
+      Just nc | nc > 0 -> writeIORef (_numberOfColours form) nc
+      _ -> putStrLn $ "Invalid number of colours input: " ++ numberOfColoursText
+
+    targetStitchesText <- entryGetText targetStitches
+    case readMaybe targetStitchesText :: Maybe Int of
+      Just ts | ts > 0 -> writeIORef (_targetStitches form) ts
+      _ -> putStrLn $ "Invalid target stitches input: " ++ targetStitchesText
+
+    printForm form
 
     -- Queue a redraw for the drawing area
     widgetQueueDraw drawingArea
@@ -163,3 +211,38 @@ mainGtkApp = do
 
   -- Start the GTK+ main event loop
   mainGUI
+
+-- | Creates a horizontal box with a label and an entry for text input.
+inputText :: String -> String -> IO (Entry, HBox)
+inputText label defaultValue = do
+  entry <- entryNew
+  entrySetText entry defaultValue
+  label <- labelNew (Just label)
+  hbox <- hBoxNew False 5
+  boxPackStart hbox label PackNatural 0
+  boxPackStart hbox entry PackGrow 0
+  pure (entry, hbox)
+
+
+initialForm :: IO Form
+initialForm = do
+  stitchGauge <- newIORef 2.1
+  rowGauge <- newIORef 1.9
+  numberOfColours <- newIORef 3
+  targetStitches <- newIORef 100
+  imageFilePath <- newIORef Nothing
+  pure $ MkForm stitchGauge rowGauge numberOfColours targetStitches imageFilePath
+
+-- For debug for now
+printForm :: Form -> IO ()
+printForm form = do
+  sg <- readIORef $ _stitchGauge form
+  rg <- readIORef $ _rowGauge form
+  nc <- readIORef $ _numberOfColours form
+  ts <- readIORef $ _targetStitches form
+  mfp <- readIORef $ _imageFilePath form
+  putStrLn $ "Stitch Gauge: " ++ show sg
+  putStrLn $ "Row Gauge: " ++ show rg
+  putStrLn $ "Number of Colours: " ++ show nc
+  putStrLn $ "Target Stitches: " ++ show ts
+  putStrLn $ "Image File Path: " ++ show mfp
