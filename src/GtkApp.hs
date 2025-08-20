@@ -1,34 +1,30 @@
 module GtkApp (mainGtkApp) where
 
+import CairoDraw (drawGrid, calculateCanvasSize)
 import Codec.Picture (readImage)
 import Codec.Picture.Types (DynamicImage)
 import Control.Lens (makeLenses)
 import Control.Monad (void)
+import Control.Monad.Except
 import Data.Either (fromRight)
 import Data.IORef
 import Data.Maybe
 import Debug.Trace
 import Graphics.Rendering.Cairo
 import Graphics.UI.Gtk
+import ImageProcessing (colourGrid)
+import InputForm
 import Linear (V0 (V0))
 import Text.Read (readMaybe)
-import InputForm
-import ImageProcessing (colourGrid)
-import CairoDraw (drawGrid)
-import Control.Monad.Except
-
--- | Data type to hold the application's state.
-data AppState = AppState
-  { _squareSize :: IORef Double,
-    _squareXPos :: IORef Double
-  }
+import StitchConfig (StitchConfig)
 
 data Form = MkForm
   { _stitchGauge :: IORef Double,
     _rowGauge :: IORef Double,
     _numberOfColours :: IORef Int,
     _targetStitches :: IORef Int,
-    _imageFilePath :: IORef String
+    _imageFilePath :: IORef String,
+    _drawingAreaSize :: IORef (Int, Int)
   }
 
 mainGtkApp :: IO ()
@@ -36,10 +32,6 @@ mainGtkApp = do
   -- Initialize GTK+
   void initGUI
 
-  -- Create mutable references for square properties
-  initialSize <- newIORef 100.0
-  initialXPos <- newIORef 50.0
-  let appState = AppState initialSize initialXPos
   form <- initialForm
 
   -- Create the main window
@@ -126,23 +118,19 @@ mainGtkApp = do
 
   -- --- Drawing Area Section ---
   drawingArea <- drawingAreaNew
-  widgetSetSizeRequest drawingArea 400 300
+  -- widgetSetSizeRequest drawingArea 400 300
+
+  scrolledWindow <- scrolledWindowNew Nothing Nothing
+  set
+    scrolledWindow
+    [ scrolledWindowHscrollbarPolicy := PolicyAlways,
+      scrolledWindowVscrollbarPolicy := PolicyAlways
+    ]
+  containerAdd scrolledWindow drawingArea
 
   -- Draw Button
-  drawButton <- buttonNewWithLabel "Draw Squares"
+  drawButton <- buttonNewWithLabel "Create stitch diagram"
   _ <- on drawButton buttonActivated $ do
-    -- Read and validate input from sizeEntry
-    sizeText <- entryGetText sizeEntry
-    case readMaybe sizeText :: Maybe Double of
-      Just s | s > 0 -> writeIORef (_squareSize appState) s
-      _ -> putStrLn $ "Invalid size input: " ++ sizeText ++ ". Using previous value."
-
-    -- Read and validate input from xPosEntry
-    xPosText <- entryGetText xPosEntry
-    case readMaybe xPosText :: Maybe Double of
-      Just x -> writeIORef (_squareXPos appState) x
-      _ -> putStrLn $ "Invalid X position input: " ++ xPosText ++ ". Using previous value."
-
     stitchGauge <- entryGetText stitchGauge
     case readMaybe stitchGauge :: Maybe Double of
       Just sg | sg > 0 -> writeIORef (_stitchGauge form) sg
@@ -163,30 +151,29 @@ mainGtkApp = do
       Just ts | ts > 0 -> writeIORef (_targetStitches form) ts
       _ -> putStrLn $ "Invalid target stitches input: " ++ targetStitchesText
 
-    image <- readImage =<< readIORef (_imageFilePath form)
-    let dynamicImage = fromRight undefined image -- Actually handle this better later
-    validForm <-
-      MkValidForm
-        <$> readIORef (_stitchGauge form)
-        <*> readIORef (_rowGauge form)
-        <*> readIORef (_numberOfColours form)
-        <*> readIORef (_targetStitches form)
-        <*> pure dynamicImage
-    -- This is not good validation. Come back to this later
-
-    let avgGrid = colourGrid validForm
-    -- Queue a redraw for the drawing area
     widgetQueueDraw drawingArea
 
   boxPackStart vbox drawButton PackNatural 0
 
+  let updateDrawingAreaRequestedSize :: StitchConfig -> IO ()
+      updateDrawingAreaRequestedSize sc = do
+        let (width, height) = calculateCanvasSize sc
+        widgetSetSizeRequest drawingArea (fromIntegral width) (fromIntegral height)
+
+  let doDraw :: ValidForm -> Render ()
+      doDraw validForm = do
+        let (avgGrid, sc) = colourGrid validForm
+        liftIO $ updateDrawingAreaRequestedSize sc
+        drawGrid sc avgGrid
+
   -- Connect the "draw" signal to our drawing function
-  _ <- on drawingArea draw $ do
+  drawingAreaWidget <- on drawingArea draw $ do
     eitherValidForm <- liftIO $ runExceptT $ validateForm form
     either (\e -> pure ()) doDraw eitherValidForm
 
   -- Add the drawing area to the vertical box, allowing it to expand
-  boxPackStart vbox drawingArea PackGrow 0
+  widgetSetSizeRequest drawingArea 1200 900 -- Temporary big size for now
+  boxPackStart vbox scrolledWindow PackGrow 0
 
   -- Add the vertical box to the window
   containerAdd window vbox
@@ -215,22 +202,19 @@ initialForm = do
   numberOfColours <- newIORef 3
   targetStitches <- newIORef 100
   imageFilePath <- newIORef ""
-  pure $ MkForm stitchGauge rowGauge numberOfColours targetStitches imageFilePath
+  drawingAreaSize <- newIORef (1200, 900)
+  pure $ MkForm stitchGauge rowGauge numberOfColours targetStitches imageFilePath drawingAreaSize
 
 validateForm :: Form -> ExceptT String IO ValidForm
 validateForm form = do
   dynamicImage <- ExceptT $ readImage =<< readIORef (_imageFilePath form)
-  lift $ MkValidForm
-        <$> readIORef (_stitchGauge form)
-        <*> readIORef (_rowGauge form)
-        <*> readIORef (_numberOfColours form)
-        <*> readIORef (_targetStitches form)
-        <*> pure dynamicImage
-
-doDraw :: ValidForm -> Render ()
-doDraw validForm = do
-  let (avgGrid, sc) = colourGrid validForm
-  drawGrid sc avgGrid
+  lift $
+    MkValidForm
+      <$> readIORef (_stitchGauge form)
+      <*> readIORef (_rowGauge form)
+      <*> readIORef (_numberOfColours form)
+      <*> readIORef (_targetStitches form)
+      <*> pure dynamicImage
 
 -- For debug for now
 printForm :: Form -> IO ()

@@ -8,7 +8,7 @@ import Codec.Picture.Saving (imageToBitmap, imageToJpg)
 import Control.Exception (throw)
 import Control.Lens ((^.))
 import Data.ByteString.Lazy as BS (writeFile)
-import qualified Data.Map as M
+import qualified Data.Map.Strict as M
 import Data.Range
 import Data.Word (Word8)
 import Debug.Trace

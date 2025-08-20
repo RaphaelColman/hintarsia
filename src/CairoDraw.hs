@@ -1,4 +1,4 @@
-module CairoDraw (drawGrid) where
+module CairoDraw (drawGrid, calculateCanvasSize) where
 
 import Codec.Picture (PixelRGB8 (..))
 import Control.Lens ((^.))
@@ -17,14 +17,14 @@ import Graphics.Rendering.Cairo
   )
 import ImageProcessing (AvgGrid)
 import Linear (V2 (..))
-import StitchConfig (StitchConfig, stitchHeightInPixels, stitchWidthInPixels)
+import StitchConfig (StitchConfig (MkStitchConfig), numRows, numStitches, stitchHeightInPixels, stitchWidthInPixels)
 
 -- | Draws a grid of colored cells using Cairo.
 -- (width, height), (x, y), and PixelRGB8 color.
 drawCell :: (Integer, Integer) -> (Integer, Integer) -> PixelRGB8 -> Render ()
 drawCell (width, height) (x, y) (PixelRGB8 r g b) = do
   setSourceRGB (toDouble r) (toDouble g) (toDouble b)
-  setLineWidth 2.0
+  setLineWidth 1.0
   rectangle (fromIntegral x) (fromIntegral y) (fromIntegral width) (fromIntegral height)
   fillPreserve
   setSourceRGB 0.0 0.0 0.0 -- Black border
@@ -44,3 +44,8 @@ drawGrid sc aGrid = do
             yPos = y * height
         drawCell (width, height) (xPos, yPos) color
     )
+
+--Might need to incorporate border width
+calculateCanvasSize :: StitchConfig -> (Integer, Integer)
+calculateCanvasSize sc@(MkStitchConfig numStitches numRows stitchWidthInPixels stitchHeightInPixels) =
+  (numStitches * stitchWidthInPixels, numRows * stitchHeightInPixels)
