@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module ImageProcessing (produceColourGrid, AvgGrid, averageColour) where
+module ImageProcessing (produceColourGrid, AvgGrid, averageColour, colourGrid) where
 
 import Codec.Picture
 import Codec.Picture.Saving (imageToBitmap, imageToJpg)
@@ -16,7 +16,9 @@ import Linear
 import StitchConfig
 import Text.Printf (printf)
 import Data.Foldable (minimumBy)
-import Data.Function (on)
+import Data.Function (on, (&))
+import InputForm (ValidForm, validImage, validRowGauge, validStitchGauge, validTargetStitches, validNumberOfColours)
+import Control.Lens.Operators ((.~))
 
 type AvgGrid = M.Map (V2 Integer) PixelRGB8
 
@@ -35,6 +37,15 @@ produceColourGrid = do
       let reduced = reduceAvgGridToPalette avgGrid palette
       pure reduced
 
+colourGrid :: ValidForm -> (AvgGrid, StitchConfig)
+colourGrid form = (reduceAvgGridToPalette avgGrid palette, sc)
+  where di = form ^. validImage
+        gauge = MkGauge (form ^. validStitchGauge, 1.0) (form ^. validRowGauge, 1.0)
+        sc = getStitchConfig di gauge (toInteger (form ^. validTargetStitches))
+        converted = convertRGB8 di
+        grids = getGrids sc converted
+        avgGrid = avgOverGrid grids
+        palette = doPalettize (form ^. validNumberOfColours) converted
 
 writeImageOut :: DynamicImage -> IO ()
 writeImageOut di = do

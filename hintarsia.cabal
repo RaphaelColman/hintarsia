@@ -30,6 +30,7 @@ library
       DynamicImageUtils
       GtkApp
       ImageProcessing
+      InputForm
       Lib
       StitchConfig
   other-modules:
@@ -51,6 +52,7 @@ library
     , gtk3
     , lens
     , linear
+    , mtl
     , range
     , text-format
   default-language: Haskell2010
@@ -77,6 +79,7 @@ executable hintarsia-exe
     , hintarsia
     , lens
     , linear
+    , mtl
     , range
     , text-format
   default-language: Haskell2010
@@ -107,6 +110,7 @@ test-suite hintarsia-test
     , hspec-discover
     , lens
     , linear
+    , mtl
     , range
     , text-format
   default-language: Haskell2010
