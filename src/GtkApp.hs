@@ -1,6 +1,6 @@
 module GtkApp (mainGtkApp) where
 
-import CairoDraw (drawGrid, calculateCanvasSize)
+import CairoDraw (calculateCanvasSize, drawGrid)
 import Codec.Picture (readImage)
 import Codec.Picture.Types (DynamicImage)
 import Control.Lens (makeLenses)
@@ -15,8 +15,8 @@ import Graphics.UI.Gtk
 import ImageProcessing (colourGrid)
 import InputForm
 import Linear (V0 (V0))
-import Text.Read (readMaybe)
 import StitchConfig (StitchConfig)
+import Text.Read (readMaybe)
 
 data Form = MkForm
   { _stitchGauge :: IORef Double,
@@ -174,6 +174,41 @@ mainGtkApp = do
   -- Add the drawing area to the vertical box, allowing it to expand
   widgetSetSizeRequest drawingArea 1200 900 -- Temporary big size for now
   boxPackStart vbox scrolledWindow PackGrow 0
+
+  -- --- Export to PDF Button ---
+  exportPdfButton <- buttonNewWithLabel "Export to PDF"
+  widgetSetTooltipText exportPdfButton (Just "Save the current drawing as a PDF file.")
+  _ <- on exportPdfButton buttonActivated $ do
+    dialog <-
+      fileChooserDialogNew
+        (Just "Save Drawing as PDF")
+        (Just window)
+        FileChooserActionSave
+        [ ("Save", ResponseAccept),
+          ("Cancel", ResponseCancel)
+        ]
+    fileChooserSetDoOverwriteConfirmation dialog True
+    fileChooserSetCurrentName dialog "my_drawing.png"
+
+    response <- dialogRun dialog
+
+    case response of
+      ResponseAccept -> do
+        mFilename <- fileChooserGetFilename dialog
+        case mFilename of
+          Just filename -> do
+            putStrLn $ "Saving to PDF: " ++ filename
+            surface <- createImageSurface FormatRGB24 1200 900 --This needs to take the actual canvas we drew on!
+            renderWith surface $ do
+              eitherValidForm <- liftIO $ runExceptT $ validateForm form
+              either (\e -> pure ()) doDraw eitherValidForm
+            surfaceWriteToPNG surface filename
+          Nothing -> putStrLn "No filename selected for PDF export."
+      _ -> putStrLn "PDF export cancelled."
+
+    widgetDestroy dialog
+
+  boxPackStart vbox exportPdfButton PackNatural 0
 
   -- Add the vertical box to the window
   containerAdd window vbox
