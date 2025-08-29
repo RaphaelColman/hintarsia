@@ -13,7 +13,7 @@ import Debug.Trace
 import Graphics.Rendering.Cairo
 import Graphics.UI.Gtk
 import ImageProcessing (colourGrid)
-import InputForm
+import InputForm hiding (validateForm)
 import Linear (V0 (V0))
 import StitchConfig (StitchConfig)
 import Text.Read (readMaybe)
@@ -23,8 +23,7 @@ data Form = MkForm
     _rowGauge :: IORef Double,
     _numberOfColours :: IORef Int,
     _targetStitches :: IORef Int,
-    _imageFilePath :: IORef String,
-    _drawingAreaSize :: IORef (Int, Int)
+    _imageFilePath :: IORef String
   }
 
 mainGtkApp :: IO ()
@@ -83,16 +82,6 @@ mainGtkApp = do
   boxPackStart vbox fileChooserButton PackNatural 0
 
   -- --- Text Entry Section ---
-  -- Entry for Square Size
-  sizeEntry <- entryNew
-  entrySetText sizeEntry (show (100.0 :: Double)) -- Default value
-  sizeLabel <- labelNew (Just "Square Size:")
-
-  -- Entry for Square X Position
-  xPosEntry <- entryNew
-  entrySetText xPosEntry (show (50.0 :: Double)) -- Default value
-  xPosLabel <- labelNew (Just "Square X Position:")
-
   (stitchGauge, stitchGaugeBox) <- inputText "Stitch gauge stitch/cm" "2.1"
   (rowGauge, rowGaugeBox) <- inputText "Row gauge row/cm" "1.9"
   (numberOfColours, numberOfColoursBox) <- inputText "Number of colours" "3"
@@ -100,13 +89,9 @@ mainGtkApp = do
 
   -- Horizontal box for size input
   hboxSize <- hBoxNew False 5
-  boxPackStart hboxSize sizeLabel PackNatural 0
-  boxPackStart hboxSize sizeEntry PackGrow 0
 
   -- Horizontal box for X position input
   hboxXPos <- hBoxNew False 5
-  boxPackStart hboxXPos xPosLabel PackNatural 0
-  boxPackStart hboxXPos xPosEntry PackGrow 0
 
   -- Add input boxes to the vertical box
   boxPackStart vbox hboxSize PackNatural 0
@@ -118,7 +103,6 @@ mainGtkApp = do
 
   -- --- Drawing Area Section ---
   drawingArea <- drawingAreaNew
-  -- widgetSetSizeRequest drawingArea 400 300
 
   scrolledWindow <- scrolledWindowNew Nothing Nothing
   set
@@ -175,20 +159,20 @@ mainGtkApp = do
   widgetSetSizeRequest drawingArea 1200 900 -- Temporary big size for now
   boxPackStart vbox scrolledWindow PackGrow 0
 
-  -- --- Export to PDF Button ---
-  exportPdfButton <- buttonNewWithLabel "Export to PDF"
-  widgetSetTooltipText exportPdfButton (Just "Save the current drawing as a PDF file.")
-  _ <- on exportPdfButton buttonActivated $ do
+  -- --- Export to PNG Button ---
+  exportPngButton <- buttonNewWithLabel "Export to PNG"
+  widgetSetTooltipText exportPngButton (Just "Save the current drawing as a PNG file.")
+  _ <- on exportPngButton buttonActivated $ do
     dialog <-
       fileChooserDialogNew
-        (Just "Save Drawing as PDF")
+        (Just "Save Drawing as PNG")
         (Just window)
         FileChooserActionSave
         [ ("Save", ResponseAccept),
           ("Cancel", ResponseCancel)
         ]
     fileChooserSetDoOverwriteConfirmation dialog True
-    fileChooserSetCurrentName dialog "my_drawing.png"
+    fileChooserSetCurrentName dialog "stitch_diagram.png"
 
     response <- dialogRun dialog
 
@@ -197,18 +181,18 @@ mainGtkApp = do
         mFilename <- fileChooserGetFilename dialog
         case mFilename of
           Just filename -> do
-            putStrLn $ "Saving to PDF: " ++ filename
-            surface <- createImageSurface FormatRGB24 1200 900 --This needs to take the actual canvas we drew on!
+            putStrLn $ "Saving to PNG: " ++ filename
+            surface <- createImageSurface FormatRGB24 1200 900 -- This needs to take the actual canvas we drew on!
             renderWith surface $ do
               eitherValidForm <- liftIO $ runExceptT $ validateForm form
               either (\e -> pure ()) doDraw eitherValidForm
             surfaceWriteToPNG surface filename
-          Nothing -> putStrLn "No filename selected for PDF export."
-      _ -> putStrLn "PDF export cancelled."
+          Nothing -> putStrLn "No filename selected for PNG export."
+      _ -> putStrLn "PNG export cancelled."
 
     widgetDestroy dialog
 
-  boxPackStart vbox exportPdfButton PackNatural 0
+  boxPackStart vbox exportPngButton PackNatural 0
 
   -- Add the vertical box to the window
   containerAdd window vbox
@@ -237,8 +221,7 @@ initialForm = do
   numberOfColours <- newIORef 3
   targetStitches <- newIORef 100
   imageFilePath <- newIORef ""
-  drawingAreaSize <- newIORef (1200, 900)
-  pure $ MkForm stitchGauge rowGauge numberOfColours targetStitches imageFilePath drawingAreaSize
+  pure $ MkForm stitchGauge rowGauge numberOfColours targetStitches imageFilePath
 
 validateForm :: Form -> ExceptT String IO ValidForm
 validateForm form = do
@@ -250,17 +233,3 @@ validateForm form = do
       <*> readIORef (_numberOfColours form)
       <*> readIORef (_targetStitches form)
       <*> pure dynamicImage
-
--- For debug for now
-printForm :: Form -> IO ()
-printForm form = do
-  sg <- readIORef $ _stitchGauge form
-  rg <- readIORef $ _rowGauge form
-  nc <- readIORef $ _numberOfColours form
-  ts <- readIORef $ _targetStitches form
-  mfp <- readIORef $ _imageFilePath form
-  putStrLn $ "Stitch Gauge: " ++ show sg
-  putStrLn $ "Row Gauge: " ++ show rg
-  putStrLn $ "Number of Colours: " ++ show nc
-  putStrLn $ "Target Stitches: " ++ show ts
-  putStrLn $ "Image File Path: " ++ show mfp

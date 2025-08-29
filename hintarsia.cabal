@@ -55,6 +55,7 @@ library
     , mtl
     , range
     , text-format
+    , validation-selective
   default-language: Haskell2010
 
 executable hintarsia-exe
@@ -82,6 +83,7 @@ executable hintarsia-exe
     , mtl
     , range
     , text-format
+    , validation-selective
   default-language: Haskell2010
 
 test-suite hintarsia-test
@@ -89,6 +91,7 @@ test-suite hintarsia-test
   main-is: Spec.hs
   other-modules:
       ImageProcessingSpec
+      InputFormSpec
       Paths_hintarsia
   autogen-modules:
       Paths_hintarsia
@@ -113,4 +116,5 @@ test-suite hintarsia-test
     , mtl
     , range
     , text-format
+    , validation-selective
   default-language: Haskell2010

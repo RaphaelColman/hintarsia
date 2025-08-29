@@ -1,4 +1,4 @@
-module ImageProcessingSpec (spec, sumWord8s) where
+module ImageProcessingSpec (spec) where
 
 import Codec.Picture (Pixel8, PixelRGB8 (..))
 import ImageProcessing (averageColour)
@@ -14,6 +14,3 @@ spec = do
     quiteBlue = PixelRGB8 0 0 100
     blues = replicate 5 quiteBlue
     result = averageColour blues
-
-sumWord8s :: Pixel8 -> Pixel8 -> Integer
-sumWord8s a b = fromIntegral a + fromIntegral b
