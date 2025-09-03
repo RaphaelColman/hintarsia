@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module GtkApp (mainGtkApp) where
 
 import CairoDraw (calculateCanvasSize, drawGrid)
@@ -13,18 +14,12 @@ import Debug.Trace
 import Graphics.Rendering.Cairo
 import Graphics.UI.Gtk
 import ImageProcessing (colourGrid)
-import InputForm hiding (validateForm)
+import InputForm 
 import Linear (V0 (V0))
 import StitchConfig (StitchConfig)
 import Text.Read (readMaybe)
-
-data Form = MkForm
-  { _stitchGauge :: IORef Double,
-    _rowGauge :: IORef Double,
-    _numberOfColours :: IORef Int,
-    _targetStitches :: IORef Int,
-    _imageFilePath :: IORef String
-  }
+import Validation
+import Data.Foldable (for_)
 
 mainGtkApp :: IO ()
 mainGtkApp = do
@@ -32,6 +27,7 @@ mainGtkApp = do
   void initGUI
 
   form <- initialForm
+  validFormRef <- newIORef Nothing
 
   -- Create the main window
   window <- windowNew
@@ -115,25 +111,17 @@ mainGtkApp = do
   -- Draw Button
   drawButton <- buttonNewWithLabel "Create stitch diagram"
   _ <- on drawButton buttonActivated $ do
-    stitchGauge <- entryGetText stitchGauge
-    case readMaybe stitchGauge :: Maybe Double of
-      Just sg | sg > 0 -> writeIORef (_stitchGauge form) sg
-      _ -> putStrLn $ "Invalid stitch gauge input: " ++ stitchGauge
+    entryGetText stitchGauge >>= writeIORef (_stitchGauge form)
+    entryGetText rowGauge >>= writeIORef (_rowGauge form)
+    entryGetText targetStitches >>= writeIORef (_targetStitches form)
+    entryGetText numberOfColours >>= writeIORef (_numberOfColours form)
 
-    rowGauge <- entryGetText rowGauge
-    case readMaybe rowGauge :: Maybe Double of
-      Just rg | rg > 0 -> writeIORef (_rowGauge form) rg
-      _ -> putStrLn $ "Invalid row gauge input: " ++ rowGauge
-
-    numberOfColoursText <- entryGetText numberOfColours
-    case readMaybe numberOfColoursText :: Maybe Int of
-      Just nc | nc > 0 -> writeIORef (_numberOfColours form) nc
-      _ -> putStrLn $ "Invalid number of colours input: " ++ numberOfColoursText
-
-    targetStitchesText <- entryGetText targetStitches
-    case readMaybe targetStitchesText :: Maybe Int of
-      Just ts | ts > 0 -> writeIORef (_targetStitches form) ts
-      _ -> putStrLn $ "Invalid target stitches input: " ++ targetStitchesText
+    validateForm form >>= \case
+      Success validForm -> do
+        writeIORef validFormRef (Just validForm)
+        widgetQueueDraw drawingArea
+      Failure errs -> do
+        putStrLn $ "Form has errors: " ++ show errs
 
     widgetQueueDraw drawingArea
 
@@ -152,8 +140,8 @@ mainGtkApp = do
 
   -- Connect the "draw" signal to our drawing function
   drawingAreaWidget <- on drawingArea draw $ do
-    eitherValidForm <- liftIO $ runExceptT $ validateForm form
-    either (\e -> pure ()) doDraw eitherValidForm
+    maybeValidForm <- liftIO $ readIORef validFormRef
+    for_ maybeValidForm doDraw
 
   -- Add the drawing area to the vertical box, allowing it to expand
   widgetSetSizeRequest drawingArea 1200 900 -- Temporary big size for now
@@ -184,8 +172,10 @@ mainGtkApp = do
             putStrLn $ "Saving to PNG: " ++ filename
             surface <- createImageSurface FormatRGB24 1200 900 -- This needs to take the actual canvas we drew on!
             renderWith surface $ do
-              eitherValidForm <- liftIO $ runExceptT $ validateForm form
-              either (\e -> pure ()) doDraw eitherValidForm
+              validatedForm <- liftIO $ validateForm form
+              case validatedForm of
+                Success validForm -> doDraw validForm
+                Failure errs -> pure ()
             surfaceWriteToPNG surface filename
           Nothing -> putStrLn "No filename selected for PNG export."
       _ -> putStrLn "PNG export cancelled."
@@ -216,20 +206,9 @@ inputText label defaultValue = do
 
 initialForm :: IO Form
 initialForm = do
-  stitchGauge <- newIORef 2.1
-  rowGauge <- newIORef 1.9
-  numberOfColours <- newIORef 3
-  targetStitches <- newIORef 100
+  stitchGauge <- newIORef "2.1"
+  rowGauge <- newIORef "1.9"
+  numberOfColours <- newIORef "3"
+  targetStitches <- newIORef "100"
   imageFilePath <- newIORef ""
   pure $ MkForm stitchGauge rowGauge numberOfColours targetStitches imageFilePath
-
-validateForm :: Form -> ExceptT String IO ValidForm
-validateForm form = do
-  dynamicImage <- ExceptT $ readImage =<< readIORef (_imageFilePath form)
-  lift $
-    MkValidForm
-      <$> readIORef (_stitchGauge form)
-      <*> readIORef (_rowGauge form)
-      <*> readIORef (_numberOfColours form)
-      <*> readIORef (_targetStitches form)
-      <*> pure dynamicImage

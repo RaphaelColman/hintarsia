@@ -2,17 +2,7 @@
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 
-module InputForm
-  ( ValidForm (MkValidForm),
-    validImage,
-    validRowGauge,
-    validStitchGauge,
-    validNumberOfColours,
-    validTargetStitches,
-    FormError (InvalidStitchGauge, InvalidRowGauge, InvalidNumberOfColours, InvalidTargetStitches, InvalidImageFilePath),
-    validateForm,
-  )
-where
+module InputForm where
 
 import Codec.Picture (readImage)
 import Codec.Picture.Types (DynamicImage)
@@ -40,6 +30,7 @@ data ValidForm = MkValidForm
   }
 
 makeLenses ''ValidForm
+makeLenses ''Form
 
 data FormError
   = InvalidStitchGauge String
