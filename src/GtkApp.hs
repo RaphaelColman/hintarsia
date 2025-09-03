@@ -174,7 +174,8 @@ mainGtkApp = do
             renderWith surface $ do
               validatedForm <- liftIO $ validateForm form
               case validatedForm of
-                Success validForm -> doDraw validForm
+                Success validForm -> do 
+                  doDraw validForm
                 Failure errs -> pure ()
             surfaceWriteToPNG surface filename
           Nothing -> putStrLn "No filename selected for PNG export."

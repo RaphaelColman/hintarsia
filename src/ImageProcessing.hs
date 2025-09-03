@@ -1,7 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
-module ImageProcessing (produceColourGrid, AvgGrid, averageColour, colourGrid) where
+module ImageProcessing (AvgGrid, averageColour, colourGrid) where
 
 import Codec.Picture
 import Codec.Picture.Saving (imageToBitmap, imageToJpg)
@@ -21,21 +21,6 @@ import InputForm (ValidForm, validImage, validRowGauge, validStitchGauge, validT
 import Control.Lens.Operators ((.~))
 
 type AvgGrid = M.Map (V2 Integer) PixelRGB8
-
--- | This is not how it will work, I just need to produce a map
-produceColourGrid :: IO (M.Map (V2 Integer) PixelRGB8)
-produceColourGrid = do
-  image <- readImage "res/Haskell-Logo-2.jpg"
-  case image of
-    Left err -> undefined -- Should maybe introduce ExceptT into this
-    Right di -> do
-      let sc = getStitchConfig di testGauge 50
-      let converted = convertRGB8 di
-      let grids = getGrids sc converted
-      let avgGrid = avgOverGrid grids
-      let palette = doPalettize 2 converted
-      let reduced = reduceAvgGridToPalette avgGrid palette
-      pure reduced
 
 colourGrid :: ValidForm -> (AvgGrid, StitchConfig)
 colourGrid form = (reduceAvgGridToPalette avgGrid palette, sc)
@@ -65,7 +50,7 @@ getGrids sc img = M.fromList tupList
     pixelsFor (V2 x y) =
       let xMin = x * sc ^. stitchWidthInPixels
           yMin = y * sc ^. stitchHeightInPixels
-       in [flippedPixelAt img (fromInteger x) (fromInteger y) | x <- [xMin .. xMin + (sc ^. stitchWidthInPixels - 1)], y <- [yMin .. (yMin + sc ^. stitchHeightInPixels - 1)]]
+       in [pixelAt img (fromInteger x) (fromInteger y) | x <- [xMin .. xMin + (sc ^. stitchWidthInPixels - 1)], y <- [yMin .. (yMin + sc ^. stitchHeightInPixels - 1)]]
     tupList = fmap (\c -> (c, pixelsFor c)) coords
     -- JuicyPixels has (0,0) as the top left corner, but we want (0,0) to be the bottom left corner
     flippedPixelAt img' x y = pixelAt img' x ((imageHeight img - 1) - y)
