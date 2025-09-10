@@ -41,6 +41,8 @@ mainGtkApp = do
   -- Connect the destroy event to quit the GTK+ main loop
   _ <- on window objectDestroy mainQuit
 
+  windowFullscreen window -- Easier to debug if this is not fullscreen
+
   -- Create a vertical box to arrange widgets
   vbox <- vBoxNew False 5 -- False for non-homogeneous, 5 for spacing
 
@@ -151,37 +153,38 @@ mainGtkApp = do
   exportPngButton <- buttonNewWithLabel "Export to PNG"
   widgetSetTooltipText exportPngButton (Just "Save the current drawing as a PNG file.")
   _ <- on exportPngButton buttonActivated $ do
-    dialog <-
-      fileChooserDialogNew
-        (Just "Save Drawing as PNG")
-        (Just window)
-        FileChooserActionSave
-        [ ("Save", ResponseAccept),
-          ("Cancel", ResponseCancel)
-        ]
-    fileChooserSetDoOverwriteConfirmation dialog True
-    fileChooserSetCurrentName dialog "stitch_diagram.png"
+    validatedForm <- liftIO $ validateForm form
+    for_ validatedForm $ \validForm -> do
+      let (avgGrid, sc) = colourGrid validForm
+      let (width, height) = calculateCanvasSize sc
 
-    response <- dialogRun dialog
+      dialog <-
+        fileChooserDialogNew
+          (Just "Save Drawing as PNG")
+          (Just window)
+          FileChooserActionSave
+          [ ("Save", ResponseAccept),
+            ("Cancel", ResponseCancel)
+          ]
+      fileChooserSetDoOverwriteConfirmation dialog True
+      fileChooserSetCurrentName dialog "stitch_diagram.png"
 
-    case response of
-      ResponseAccept -> do
-        mFilename <- fileChooserGetFilename dialog
-        case mFilename of
-          Just filename -> do
-            putStrLn $ "Saving to PNG: " ++ filename
-            surface <- createImageSurface FormatRGB24 1200 900 -- This needs to take the actual canvas we drew on!
-            renderWith surface $ do
-              validatedForm <- liftIO $ validateForm form
-              case validatedForm of
-                Success validForm -> do 
-                  doDraw validForm
-                Failure errs -> pure ()
-            surfaceWriteToPNG surface filename
-          Nothing -> putStrLn "No filename selected for PNG export."
-      _ -> putStrLn "PNG export cancelled."
+      response <- dialogRun dialog
 
-    widgetDestroy dialog
+      case response of
+        ResponseAccept -> do
+          mFilename <- fileChooserGetFilename dialog
+          case mFilename of
+            Just filename -> do
+              putStrLn $ "Saving to PNG: " ++ filename
+              surface <- createImageSurface FormatRGB24 (fromInteger height) (fromInteger width)
+              renderWith surface $ do
+                drawGrid sc avgGrid
+              surfaceWriteToPNG surface filename
+            Nothing -> putStrLn "No filename selected for PNG export."
+        _ -> putStrLn "PNG export cancelled."
+
+      widgetDestroy dialog
 
   boxPackStart vbox exportPngButton PackNatural 0
 
