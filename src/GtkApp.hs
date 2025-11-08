@@ -177,7 +177,7 @@ mainGtkApp = do
           case mFilename of
             Just filename -> do
               putStrLn $ "Saving to PNG: " ++ filename
-              surface <- createImageSurface FormatRGB24 (fromInteger height) (fromInteger width)
+              surface <- createImageSurface FormatRGB24 (fromInteger width) (fromInteger height)
               renderWith surface $ do
                 drawGrid sc avgGrid
               surfaceWriteToPNG surface filename

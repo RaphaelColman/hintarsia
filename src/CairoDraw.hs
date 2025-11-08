@@ -18,6 +18,7 @@ import Graphics.Rendering.Cairo
 import ImageProcessing (AvgGrid)
 import Linear (V2 (..))
 import StitchConfig (StitchConfig (MkStitchConfig), numRows, numStitches, stitchHeightInPixels, stitchWidthInPixels)
+import Debug.Trace (traceM, traceShow, traceShowM)
 
 -- | Draws a grid of colored cells using Cairo.
 -- (width, height), (x, y), and PixelRGB8 color.

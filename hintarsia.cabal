@@ -91,7 +91,6 @@ test-suite hintarsia-test
   main-is: Spec.hs
   other-modules:
       ImageProcessingSpec
-      InputFormSpec
       Paths_hintarsia
   autogen-modules:
       Paths_hintarsia
